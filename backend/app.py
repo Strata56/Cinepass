@@ -1,0 +1,106 @@
+from __future__ import annotations
+
+from flask import Flask, jsonify, render_template, request
+
+from config import Config
+from database import DatabaseUnavailable, initialize_database
+from services.movie_scraper import ScraperError
+from services.movie_service import get_movie, list_movies, save_summary, search_or_scrape_movie
+from services.recommendation_service import RecommendationError, get_recommendations
+from services.summary_service import SummaryError, generate_summary
+from utils.validators import ValidationError, validate_movie_query, validate_recommendation_input, validate_summary_input
+
+
+def error(message: str, status: int = 400):
+    return jsonify({"success": False, "message": message}), status
+
+
+def json_body() -> dict:
+    if not request.is_json:
+        raise ValidationError("Send a JSON request.")
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        raise ValidationError("Send a valid JSON object.")
+    return payload
+
+
+def create_app() -> Flask:
+    Config.validate()
+    app = Flask(__name__)
+    app.config.from_object(Config)
+    initialize_database(app)
+
+    @app.get("/")
+    def index():
+        return render_template("index.html", app_name=app.config["APP_NAME"])
+
+    @app.get("/api/movies")
+    def movies():
+        try:
+            limit = max(1, min(int(request.args.get("limit", app.config["HOMEPAGE_MOVIE_LIMIT"])), 50))
+        except ValueError:
+            limit = app.config["HOMEPAGE_MOVIE_LIMIT"]
+        try:
+            return jsonify({"success": True, "movies": list_movies(limit)})
+        except DatabaseUnavailable:
+            return error("The movie database is currently unavailable.", 503)
+
+    @app.post("/api/search")
+    def search():
+        try:
+            query = validate_movie_query(json_body().get("query"))
+            movie, source = search_or_scrape_movie(query, app.config["REQUEST_TIMEOUT_SECONDS"])
+            if not movie:
+                return error("Movie information could not be found.", 404)
+            return jsonify({"success": True, "movie": movie, "source": source})
+        except ValidationError as exc:
+            return error(str(exc))
+        except DatabaseUnavailable:
+            return error("The movie database is currently unavailable.", 503)
+        except ScraperError:
+            return error("Movie information could not be collected from the web.", 502)
+
+    @app.post("/api/recommend")
+    def recommend():
+        try:
+            preferences = validate_recommendation_input(json_body())
+            return jsonify({"success": True, "recommendations": get_recommendations(preferences)})
+        except ValidationError as exc:
+            return error(str(exc))
+        except RecommendationError as exc:
+            return error(str(exc), 503)
+
+    @app.post("/api/summary")
+    def summary():
+        try:
+            movie_id, regenerate = validate_summary_input(json_body())
+            movie = get_movie(movie_id)
+            if not movie:
+                return error("Movie information could not be found.", 404)
+            if movie.get("ai_summary") and not regenerate:
+                result = {
+                    "title": movie["title"],
+                    "summary": movie["ai_summary"],
+                    "genre": movie.get("summary_genre") or "Not available",
+                    "mood": movie.get("summary_mood") or "Not available",
+                    "suitable_for": movie.get("summary_suitable_for") or "Not available",
+                }
+                return jsonify({"success": True, "result": result, "provider": movie.get("summary_provider"), "source": "database"})
+            result, provider = generate_summary(movie)
+            save_summary(movie_id, result, provider)
+            return jsonify({"success": True, "result": result, "provider": provider, "source": "generated"})
+        except ValidationError as exc:
+            return error(str(exc))
+        except DatabaseUnavailable:
+            return error("The movie database is currently unavailable.", 503)
+        except SummaryError as exc:
+            return error(str(exc), 503)
+
+    return app
+
+
+app = create_app()
+
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=5000, debug=app.config["DEBUG"])
