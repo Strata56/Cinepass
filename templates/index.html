@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0d13">
+  <meta name="description" content="Discover movies, search Wikipedia live, watch trailers, and get intelligent AI recommendations and spoiler-free summaries.">
+  <title>{{ app_name }} — Smart Movie Discovery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="ambient-glow ambient-1" aria-hidden="true"></div>
+  <div class="ambient-glow ambient-2" aria-hidden="true"></div>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#top" aria-label="CineSuggest AI home">
+        <span class="brand-badge">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm0 2v3h2V5H4zm0 5v4h2v-4H4zm0 6v3h2v-3H4zm14-11h-2v3h2V5zm0 5h-2v4h2v-4zm0 6h-2v3h2v-3zM8 5v14h8V5H8z"/>
+          </svg>
+        </span>
+        <span class="brand-text">CineSuggest <b>AI</b></span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="#library-section" class="nav-link">Library</a>
+        <a href="#curator-section" class="nav-link">AI Curator</a>
+        <button id="nav-watchlist-btn" class="watchlist-nav-pill" type="button" title="View bookmarked movies">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+          <span>Watchlist</span>
+          <span id="nav-watchlist-count" class="badge">0</span>
+        </button>
+        <div class="ai-status-indicator" title="AI recommendation and summary service status">
+          <span class="status-dot"></span>
+          <span id="ai-status-text">AI Ready</span>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- Hero Section -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-container">
+        <div class="hero-badge">
+          <span class="sparkle">✦</span> POWERED BY OPENROUTER & WIKIPEDIA
+        </div>
+        <h1 id="hero-title">Movie Discovery,<br><em>Intelligently Curated.</em></h1>
+        <p class="hero-subtitle">
+          Search missing titles live from Wikipedia, generate spoiler-free summaries, and discover recommendations tailored to your mood.
+        </p>
+
+        <!-- Search Form -->
+        <form id="search-form" class="search-bar" role="search" novalidate>
+          <div class="search-input-wrap">
+            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              id="movie-search"
+              name="query"
+              type="search"
+              maxlength="100"
+              placeholder="Search any movie (e.g. Interstellar, 3 Idiots, Oppenheimer)..."
+              autocomplete="off"
+              required
+            >
+            <button id="search-clear-btn" type="button" class="search-clear" aria-label="Clear search text" hidden>×</button>
+          </div>
+          <button type="submit" id="search-submit-btn" class="btn-primary">
+            <span>Search Movie</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
+        </form>
+
+        <p id="search-status" class="status-msg" role="status" aria-live="polite"></p>
+
+        <!-- Quick Trending Pills -->
+        <div class="trending-pills">
+          <span class="trending-label">Trending:</span>
+          <button type="button" class="quick-pill" data-search="Interstellar">Interstellar</button>
+          <button type="button" class="quick-pill" data-search="The Dark Knight">The Dark Knight</button>
+          <button type="button" class="quick-pill" data-search="Inception">Inception</button>
+          <button type="button" class="quick-pill" data-search="3 Idiots">3 Idiots</button>
+          <button type="button" class="quick-pill" data-search="Dangal">Dangal</button>
+          <button type="button" class="quick-pill" data-search="Parasite">Parasite</button>
+          <button type="button" class="quick-pill" data-search="Coco">Coco</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Spotlight Banner -->
+    <section id="spotlight-section" class="spotlight-section" aria-label="Featured movie" hidden>
+      <div class="spotlight-card" id="spotlight-card"></div>
+    </section>
+
+    <!-- Movie Library Section -->
+    <section id="library-section" class="content-section" aria-labelledby="library-heading">
+      <div class="section-header">
+        <div>
+          <div class="section-tag">EXPLORE COLLECTION</div>
+          <h2 id="library-heading">Movie Library</h2>
+        </div>
+        <div class="view-tabs">
+          <button id="tab-all" class="tab-button active" type="button">All Movies</button>
+          <button id="tab-watchlist" class="tab-button" type="button">
+            <span>Watchlist</span>
+            <span id="tab-watchlist-badge" class="badge">0</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Controls Bar -->
+      <div class="filter-toolbar">
+        <div class="filter-search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input id="library-filter-input" type="text" placeholder="Filter by title, actor, director..." autocomplete="off">
+        </div>
+
+        <div class="filter-dropdowns">
+          <label class="filter-field">
+            <span class="filter-label">Genre</span>
+            <select id="genre-filter">
+              <option value="">All Genres</option>
+            </select>
+          </label>
+
+          <label class="filter-field">
+            <span class="filter-label">Language</span>
+            <select id="language-filter">
+              <option value="">All Languages</option>
+            </select>
+          </label>
+
+          <label class="filter-field">
+            <span class="filter-label">Min Rating</span>
+            <select id="rating-filter">
+              <option value="0">Any Rating</option>
+              <option value="7">★ 7.0+</option>
+              <option value="8">★ 8.0+</option>
+              <option value="8.5">★ 8.5+</option>
+            </select>
+          </label>
+
+          <label class="filter-field">
+            <span class="filter-label">Sort</span>
+            <select id="sort-filter">
+              <option value="newest">Recently Updated</option>
+              <option value="rating_desc">Highest Rated</option>
+              <option value="year_desc">Newest Year</option>
+              <option value="title_asc">Title A–Z</option>
+            </select>
+          </label>
+
+          <button id="reset-filters-btn" class="btn-ghost" type="button" title="Reset all filters">Reset</button>
+        </div>
+      </div>
+
+      <!-- Library Status & Count -->
+      <div class="library-meta">
+        <span id="movie-count" class="movie-count-text">Loading movies...</span>
+        <span id="active-filter-indicator" class="active-filter-pill" hidden>Filters applied</span>
+      </div>
+
+      <p id="movies-status" class="status-msg" role="status" aria-live="polite"></p>
+
+      <!-- Movie Cards Grid -->
+      <div id="movie-grid" class="movie-grid" aria-live="polite"></div>
+    </section>
+
+    <!-- AI Curator Section -->
+    <section id="curator-section" class="curator-section" aria-labelledby="recommend-heading">
+      <div class="curator-wrapper">
+        <div class="curator-header">
+          <div class="section-tag">AI MOVIE ADVISOR</div>
+          <h2 id="recommend-heading">What are you in the mood for?</h2>
+          <p class="curator-desc">
+            Pick a feeling or describe exactly what you want. OpenRouter AI analyzes tone, themes, and pacing to hand-pick three perfect films.
+          </p>
+        </div>
+
+        <!-- Quick Mood Presets -->
+        <div class="preset-chips">
+          <span class="preset-label">Quick Ideas:</span>
+          <button type="button" class="preset-chip" data-mood="Happy" data-genre="Comedy" data-lang="Hindi" data-req="Lighthearted feel-good family laughter">😄 Family Comedy</button>
+          <button type="button" class="preset-chip" data-mood="Excited" data-genre="Sci-Fi" data-lang="English" data-req="Mind-bending plot twists and deep mystery">🧠 Mind-Bending Sci-Fi</button>
+          <button type="button" class="preset-chip" data-mood="Adventurous" data-genre="Action" data-lang="English" data-req="Thrilling cinematic adventure with epic stakes">⚡ Epic Action</button>
+          <button type="button" class="preset-chip" data-mood="Romantic" data-genre="Romance" data-lang="" data-req="Touching romantic journey with memorable characters">❤️ Warm Romance</button>
+          <button type="button" class="preset-chip" data-mood="Emotional" data-genre="Drama" data-lang="" data-req="Inspirational, deeply moving personal story">💔 Heartfelt Drama</button>
+        </div>
+
+        <form id="recommend-form" class="recommend-form" novalidate>
+          <div class="form-row">
+            <label class="form-control">
+              <span class="form-label">Current Mood *</span>
+              <select id="mood" required>
+                <option value="">Choose your mood</option>
+                <option value="Happy">😄 Happy & Joyful</option>
+                <option value="Emotional">😢 Emotional & Moving</option>
+                <option value="Romantic">❤️ Romantic & Warm</option>
+                <option value="Excited">⚡ Excited & Hyped</option>
+                <option value="Relaxed">🌿 Relaxed & Cozy</option>
+                <option value="Adventurous">🗺️ Adventurous & Wonder</option>
+                <option value="Family">👨‍👩‍👧 Family Friendly</option>
+              </select>
+            </label>
+
+            <label class="form-control">
+              <span class="form-label">Preferred Genre</span>
+              <input id="preferred-genre" maxlength="60" placeholder="e.g. Science Fiction, Crime, Drama">
+            </label>
+
+            <label class="form-control">
+              <span class="form-label">Preferred Language</span>
+              <input id="preferred-language" maxlength="60" placeholder="e.g. Hindi, English, Korean">
+            </label>
+          </div>
+
+          <label class="form-control full-width">
+            <span class="form-label">Describe what you want to watch (optional)</span>
+            <textarea
+              id="recommendation-request"
+              maxlength="500"
+              rows="3"
+              placeholder="e.g. Recommend something thought-provoking with great visuals and emotional depth like Interstellar or Arrival."
+            ></textarea>
+          </label>
+
+          <div class="curator-actions">
+            <button id="recommend-button" class="btn-primary" type="submit">
+              <span>Get AI Recommendations</span>
+              <span class="sparkle" aria-hidden="true">✦</span>
+            </button>
+            <span id="recommend-hint" class="curator-hint">Powered by OpenRouter intelligent model</span>
+          </div>
+        </form>
+
+        <p id="recommend-status" class="status-msg" role="status" aria-live="polite"></p>
+        <div id="recommendation-results" class="recommendation-results"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Movie Details Modal -->
+  <div id="movie-modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-backdrop" data-close-modal></div>
+    <article class="modal-dialog">
+      <button class="modal-close-btn" type="button" aria-label="Close dialog" data-close-modal>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+      <div id="modal-content"></div>
+    </article>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <span class="brand-text">CineSuggest <b>AI</b></span>
+        <p>Intelligent movie discovery, Wikipedia scraping, and spoiler-free AI summaries.</p>
+      </div>
+      <div class="footer-meta">
+        <p>© CineSuggest AI • Connected to MongoDB & OpenRouter</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</body>
+</html>

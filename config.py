@@ -1,10 +1,16 @@
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
+_backend_dir = Path(__file__).resolve().parent
+_root_dir = _backend_dir.parent
 
-load_dotenv(Path(__file__).with_name(".env"))
+# Load .env from backend folder, project root, and cwd
+load_dotenv(_backend_dir / ".env")
+load_dotenv(_root_dir / ".env")
+load_dotenv()
 
 
 def as_bool(value: str | None, default: bool = False) -> bool:

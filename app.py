@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Ensure backend directory is in python search path
+_backend_path = str(Path(__file__).resolve().parent)
+if _backend_path not in sys.path:
+    sys.path.insert(0, _backend_path)
+
 from flask import Flask, jsonify, render_template, request
 
 from config import Config
-from database import DatabaseUnavailable, initialize_database
+from database import DatabaseUnavailable, initialize_database, get_movies_collection
 from services.movie_scraper import ScraperError
 from services.movie_service import get_movie, list_movies, save_summary, search_or_scrape_movie
 from services.recommendation_service import RecommendationError, get_recommendations
@@ -37,11 +45,40 @@ def create_app() -> Flask:
     @app.get("/api/movies")
     def movies():
         try:
-            limit = max(1, min(int(request.args.get("limit", app.config["HOMEPAGE_MOVIE_LIMIT"])), 50))
+            limit = max(1, min(int(request.args.get("limit", 100)), 200))
         except ValueError:
-            limit = app.config["HOMEPAGE_MOVIE_LIMIT"]
+            limit = 100
+        genre = request.args.get("genre", "").strip()
+        language = request.args.get("language", "").strip()
+        search_query = request.args.get("search", "").strip()
+        sort_by = request.args.get("sort_by", "newest").strip()
         try:
-            return jsonify({"success": True, "movies": list_movies(limit)})
+            min_rating = float(request.args.get("min_rating", 0))
+        except ValueError:
+            min_rating = 0.0
+        try:
+            return jsonify({"success": True, "movies": list_movies(limit, genre=genre, language=language, min_rating=min_rating, search=search_query, sort_by=sort_by)})
+        except DatabaseUnavailable:
+            return error("The movie database is currently unavailable.", 503)
+
+    @app.get("/api/stats")
+    def stats():
+        try:
+            coll = get_movies_collection()
+            count = coll.count_documents({})
+            all_genres = coll.distinct("genres")
+            flat_genres = set()
+            for g in all_genres:
+                if isinstance(g, list):
+                    flat_genres.update(g)
+                elif isinstance(g, str) and g and g != "Not available":
+                    flat_genres.add(g)
+            return jsonify({
+                "success": True,
+                "total_movies": count,
+                "genres": sorted(g for g in flat_genres if g and g != "Not available"),
+                "ai_enabled": bool(app.config.get("OPENROUTER_API_KEY")),
+            })
         except DatabaseUnavailable:
             return error("The movie database is currently unavailable.", 503)
 
@@ -103,4 +140,6 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=app.config["DEBUG"])
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=app.config["DEBUG"])
