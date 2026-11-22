@@ -1,6 +1,7 @@
 Flask
 gunicorn
-pymongo
+pymongo[srv]
+dnspython
 python-dotenv
 requests
 beautifulsoup4

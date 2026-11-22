@@ -13,6 +13,19 @@ load_dotenv(_root_dir / ".env")
 load_dotenv()
 
 
+import re
+
+
+def _clean_mongo_uri(uri: str | None) -> str:
+    if not uri:
+        return "mongodb://localhost:27017/"
+    cleaned = uri.strip().strip("'\"")
+    # Auto-clean accidental angle brackets around username or password, e.g. <sarthakkambli56_db_user>
+    cleaned = re.sub(r"://<([^>]+)>:", r"://\1:", cleaned)
+    cleaned = re.sub(r":<([^>]+)>@", r":\1@", cleaned)
+    return cleaned
+
+
 def as_bool(value: str | None, default: bool = False) -> bool:
     if value is None:
         return default
@@ -25,9 +38,9 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "development-only-change-me")
     DEBUG = as_bool(os.getenv("FLASK_DEBUG"), False)
 
-    MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
-    MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "cinesuggest_ai")
-    MONGODB_TIMEOUT_MS = 5000
+    MONGODB_URI = _clean_mongo_uri(os.getenv("MONGODB_URI"))
+    MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "cinesuggest_ai").strip().strip("'\"")
+    MONGODB_TIMEOUT_MS = 15000
 
     OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
     OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/auto").strip()

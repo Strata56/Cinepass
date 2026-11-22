@@ -19,27 +19,45 @@ class DatabaseUnavailable(RuntimeError):
 
 
 def initialize_database(app) -> bool:
-    """Connect once on startup; never prevent Flask from starting."""
+    """Connect to MongoDB with error logging and friendly fallback."""
     global _client, _database, _connection_error
     try:
+        uri = app.config.get("MONGODB_URI", "mongodb://localhost:27017/")
+        db_name = app.config.get("MONGODB_DATABASE", "cinesuggest_ai")
+        timeout = app.config.get("MONGODB_TIMEOUT_MS", 15000)
+
         _client = MongoClient(
-            app.config["MONGODB_URI"],
-            serverSelectionTimeoutMS=app.config["MONGODB_TIMEOUT_MS"],
-            connectTimeoutMS=app.config["MONGODB_TIMEOUT_MS"],
+            uri,
+            serverSelectionTimeoutMS=timeout,
+            connectTimeoutMS=timeout,
         )
         _client.admin.command("ping")
-        _database = _client[app.config["MONGODB_DATABASE"]]
-        _database.movies.create_index([( "normalized_title", ASCENDING)], unique=True)
+        _database = _client[db_name]
+        try:
+            _database.movies.create_index([("normalized_title", ASCENDING)], unique=True)
+        except Exception:
+            pass
         _connection_error = None
+        print(f"[MongoDB] Connected to '{db_name}' successfully.", flush=True)
         return True
-    except PyMongoError:
+    except Exception as exc:
         _client = None
         _database = None
         _connection_error = "The movie database is currently unavailable."
+        print(f"[MongoDB] Connection failed: {exc}", flush=True)
         return False
 
 
 def get_database() -> Database:
+    global _database
+    if _database is None:
+        try:
+            from flask import current_app
+            if current_app:
+                initialize_database(current_app)
+        except Exception as exc:
+            print(f"[MongoDB] Auto-reconnect failed: {exc}", flush=True)
+
     if _database is None:
         raise DatabaseUnavailable(_connection_error or "The movie database is currently unavailable.")
     return _database
