@@ -34,7 +34,18 @@ def json_body() -> dict:
 
 def create_app() -> Flask:
     Config.validate()
-    app = Flask(__name__)
+    backend_dir = Path(__file__).resolve().parent
+    root_dir = backend_dir.parent
+    frontend_dir = root_dir / "frontend"
+
+    template_dir = frontend_dir / "templates" if (frontend_dir / "templates").exists() else backend_dir / "templates"
+    static_dir = frontend_dir / "static" if (frontend_dir / "static").exists() else backend_dir / "static"
+
+    app = Flask(
+        __name__,
+        template_folder=str(template_dir),
+        static_folder=str(static_dir),
+    )
     app.config.from_object(Config)
     initialize_database(app)
 
