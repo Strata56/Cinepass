@@ -136,19 +136,36 @@ def _with_openrouter(prompt: str) -> str:
         raise SummaryError("The movie summary could not be generated through OpenRouter.") from exc
 
 
+def _fallback_summary(movie: dict) -> dict[str, str]:
+    desc = movie.get("description") or "A critically acclaimed cinematic work."
+    sentences = re.split(r"(?<=[.!?])\s+", desc.strip())
+    summary_text = " ".join(sentences[:3]) if sentences else desc[:200]
+    genres = movie.get("genres") or ["Cinema"]
+    genre_str = ", ".join(genres) if isinstance(genres, list) else str(genres)
+    return {
+        "title": movie.get("title", "Movie"),
+        "summary": summary_text,
+        "genre": genre_str,
+        "mood": "Immersive & Compelling",
+        "suitable_for": "Cinema lovers & General audiences",
+    }
+
+
 def generate_summary(movie: dict) -> tuple[dict[str, str], str]:
     prompt = _prompt(movie)
     provider = Config.SUMMARY_PROVIDER
-    if provider == "gemini":
-        raw = _with_gemini(prompt)
-    elif provider == "openai":
-        raw = _with_openai(prompt)
-    else:
-        raw = _with_openrouter(prompt)
-        try:
-            return _parse_result(raw, movie.get("title", "Movie")), provider
-        except SummaryError:
-            # Some OpenRouter providers occasionally violate structured output;
-            # retry once with the same schema before returning a friendly error.
+    try:
+        if provider == "gemini":
+            raw = _with_gemini(prompt)
+        elif provider == "openai":
+            raw = _with_openai(prompt)
+        else:
             raw = _with_openrouter(prompt)
-    return _parse_result(raw, movie.get("title", "Movie")), provider
+            try:
+                return _parse_result(raw, movie.get("title", "Movie")), provider
+            except SummaryError:
+                raw = _with_openrouter(prompt)
+        return _parse_result(raw, movie.get("title", "Movie")), provider
+    except Exception as exc:
+        print(f"[summary_service] AI generation notice: {exc}. Using metadata summary.", flush=True)
+        return _fallback_summary(movie), "catalog"

@@ -90,8 +90,20 @@ def create_app() -> Flask:
                 "genres": sorted(g for g in flat_genres if g and g != "Not available"),
                 "ai_enabled": bool(app.config.get("OPENROUTER_API_KEY")),
             })
-        except DatabaseUnavailable:
-            return error("The movie database is currently unavailable.", 503)
+        except Exception as exc:
+            from services.movie_service import _get_fallback_movies
+            fallback = _get_fallback_movies()
+            flat_genres = set()
+            for m in fallback:
+                for g in m.get("genres", []):
+                    if g and g != "Not available":
+                        flat_genres.add(g)
+            return jsonify({
+                "success": True,
+                "total_movies": len(fallback),
+                "genres": sorted(flat_genres),
+                "ai_enabled": bool(app.config.get("OPENROUTER_API_KEY")),
+            })
 
     @app.post("/api/search")
     def search():
@@ -112,7 +124,12 @@ def create_app() -> Flask:
     def recommend():
         try:
             preferences = validate_recommendation_input(json_body())
-            return jsonify({"success": True, "recommendations": get_recommendations(preferences)})
+            result = get_recommendations(preferences)
+            return jsonify({
+                "success": True,
+                "taste_summary": result.get("taste_summary", ""),
+                "recommendations": result.get("recommendations", []),
+            })
         except ValidationError as exc:
             return error(str(exc))
         except RecommendationError as exc:

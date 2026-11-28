@@ -1486,6 +1486,311 @@ button {
 }
 
 /* ==========================================================================
+   AI Taste Matchmaker & Movie Selector System
+   ========================================================================== */
+.taste-picker-container {
+  background: rgba(14, 18, 28, 0.7);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  margin-bottom: 24px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.taste-picker-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.taste-step-number {
+  display: inline-block;
+  background: var(--accent-gold);
+  color: #000;
+  font-weight: 800;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+}
+
+.taste-step-title {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.taste-step-sub {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  margin-top: 3px;
+}
+
+.taste-selection-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.selection-pill {
+  background: rgba(245, 197, 24, 0.15);
+  border: 1px solid rgba(245, 197, 24, 0.35);
+  color: var(--accent-gold);
+  font-weight: 800;
+  font-size: 0.82rem;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+}
+
+.btn-clear-selection {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  transition: all 0.18s;
+}
+
+.btn-clear-selection:hover {
+  color: #f87171;
+  border-color: #f87171;
+}
+
+.taste-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  margin-bottom: 14px;
+  color: var(--text-muted);
+}
+
+.taste-search-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.selected-movies-tray {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 197, 24, 0.05);
+  border: 1px dashed rgba(245, 197, 24, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.selected-movie-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(245, 197, 24, 0.22), rgba(229, 9, 20, 0.2));
+  border: 1px solid rgba(245, 197, 24, 0.45);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.selected-movie-tag-close {
+  cursor: pointer;
+  color: #cbd5e1;
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.selected-movie-tag-close:hover {
+  color: #f87171;
+}
+
+.movie-selector-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.movie-selector-pills::-webkit-scrollbar {
+  width: 6px;
+}
+
+.movie-selector-pills::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.taste-movie-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.taste-movie-pill:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.taste-movie-pill.selected {
+  background: linear-gradient(135deg, rgba(229, 9, 20, 0.35), rgba(245, 197, 24, 0.25));
+  border-color: var(--accent-gold);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 0 12px var(--accent-gold-glow);
+}
+
+.taste-movie-pill .pill-check {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+}
+
+.preset-chips-wrap {
+  margin-bottom: 22px;
+}
+
+/* Taste Profile Card */
+.taste-summary-container {
+  margin-top: 30px;
+}
+
+.taste-profile-card {
+  background: linear-gradient(135deg, rgba(245, 197, 24, 0.12) 0%, rgba(229, 9, 20, 0.1) 100%);
+  border: 1px solid rgba(245, 197, 24, 0.4);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 25px var(--accent-gold-glow);
+  animation: modalIn 0.3s ease;
+}
+
+.taste-profile-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245, 197, 24, 0.2);
+  color: var(--accent-gold);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  margin-bottom: 12px;
+}
+
+.taste-profile-text {
+  color: #f8fafc;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  font-weight: 500;
+}
+
+/* Match Score Badge on Recommendation Card */
+.rec-score-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(245, 197, 24, 0.16);
+  border: 1px solid rgba(245, 197, 24, 0.35);
+  color: var(--accent-gold);
+  font-weight: 800;
+  font-size: 0.78rem;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  align-self: flex-start;
+}
+
+.btn-card-similar {
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #7dd3fc;
+  transition: all 0.18s ease;
+}
+
+.btn-card-similar:hover {
+  background: var(--accent-cyan);
+  color: #000;
+}
+
+.card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.card-like-btn {
+  position: absolute;
+  top: 10px;
+  right: 48px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: all 0.2s ease;
+  z-index: 2;
+  font-size: 0.95rem;
+}
+
+.card-like-btn:hover {
+  transform: scale(1.12);
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.card-like-btn.active {
+  background: #f5c518;
+  color: #000;
+  border-color: #f5c518;
+}
+
+/* ==========================================================================
    Footer
    ========================================================================== */
 .site-footer {

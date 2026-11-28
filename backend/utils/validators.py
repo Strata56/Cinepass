@@ -32,16 +32,40 @@ def validate_movie_query(value: Any) -> str:
     return query
 
 
-def validate_recommendation_input(payload: dict[str, Any]) -> dict[str, str]:
+def validate_recommendation_input(payload: dict[str, Any]) -> dict[str, Any]:
+    selected_raw = payload.get("selected_movies", [])
+    selected_movies: list[str] = []
+    if isinstance(selected_raw, list):
+        for item in selected_raw:
+            val = clean_text(item, 100)
+            if val and val not in selected_movies:
+                selected_movies.append(val)
+    elif isinstance(selected_raw, str) and selected_raw.strip():
+        for item in selected_raw.split(","):
+            val = clean_text(item, 100)
+            if val and val not in selected_movies:
+                selected_movies.append(val)
+    selected_movies = selected_movies[:15]
+
     mood = clean_text(payload.get("mood"), 30)
     genre = clean_text(payload.get("genre"), 60)
     language = clean_text(payload.get("language"), 60)
     request = clean_text(payload.get("request"), 500)
-    if mood.casefold() not in MOODS:
-        raise ValidationError("Choose a mood for recommendations.")
-    if not any((genre, language, request)):
-        raise ValidationError("Add a genre, language, or a short request.")
-    return {"mood": mood, "genre": genre or "Any", "language": language or "Any", "request": request or "None"}
+
+    has_selection = len(selected_movies) > 0
+    has_mood = mood.casefold() in MOODS
+    has_custom = any((genre, language, request))
+
+    if not has_selection and not has_mood and not has_custom:
+        raise ValidationError("Select movies you like, choose a mood, or describe what you want to watch.")
+
+    return {
+        "selected_movies": selected_movies,
+        "mood": mood if has_mood else "Balanced / Any",
+        "genre": genre or "Any",
+        "language": language or "Any",
+        "request": request or "None",
+    }
 
 
 def validate_summary_input(payload: dict[str, Any]) -> tuple[str, bool]:

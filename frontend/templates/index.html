@@ -182,33 +182,68 @@
       <div id="movie-grid" class="movie-grid" aria-live="polite"></div>
     </section>
 
-    <!-- AI Curator Section -->
+    <!-- AI Curator / Movie Matchmaker Section -->
     <section id="curator-section" class="curator-section" aria-labelledby="recommend-heading">
       <div class="curator-wrapper">
         <div class="curator-header">
-          <div class="section-tag">AI MOVIE ADVISOR</div>
-          <h2 id="recommend-heading">What are you in the mood for?</h2>
+          <div class="section-tag">✦ AI MOVIE MATCHMAKER</div>
+          <h2 id="recommend-heading">Select Movies You Love — AI Finds What You'll Like</h2>
           <p class="curator-desc">
-            Pick a feeling or describe exactly what you want. OpenRouter AI analyzes tone, themes, and pacing to hand-pick three perfect films.
+            Choose movies you've enjoyed from our collection. Our AI will analyze your storytelling taste, emotional tone, and pacing to hand-pick your next favorite films.
           </p>
         </div>
 
-        <!-- Quick Mood Presets -->
-        <div class="preset-chips">
-          <span class="preset-label">Quick Ideas:</span>
-          <button type="button" class="preset-chip" data-mood="Happy" data-genre="Comedy" data-lang="Hindi" data-req="Lighthearted feel-good family laughter">😄 Family Comedy</button>
-          <button type="button" class="preset-chip" data-mood="Excited" data-genre="Sci-Fi" data-lang="English" data-req="Mind-bending plot twists and deep mystery">🧠 Mind-Bending Sci-Fi</button>
-          <button type="button" class="preset-chip" data-mood="Adventurous" data-genre="Action" data-lang="English" data-req="Thrilling cinematic adventure with epic stakes">⚡ Epic Action</button>
-          <button type="button" class="preset-chip" data-mood="Romantic" data-genre="Romance" data-lang="" data-req="Touching romantic journey with memorable characters">❤️ Warm Romance</button>
-          <button type="button" class="preset-chip" data-mood="Emotional" data-genre="Drama" data-lang="" data-req="Inspirational, deeply moving personal story">💔 Heartfelt Drama</button>
-        </div>
-
         <form id="recommend-form" class="recommend-form" novalidate>
+          <!-- Step 1: Movie Selection Grid -->
+          <div class="taste-picker-container">
+            <div class="taste-picker-header">
+              <div>
+                <span class="taste-step-number">STEP 1</span>
+                <strong class="taste-step-title">Select Movies You Like from Our Collection</strong>
+                <p class="taste-step-sub">Click any movie to add or remove it from your taste profile.</p>
+              </div>
+              <div class="taste-selection-meta">
+                <span id="selected-movies-badge" class="selection-pill">0 movies selected</span>
+                <button id="clear-selected-movies-btn" type="button" class="btn-clear-selection" hidden>Clear Selection</button>
+              </div>
+            </div>
+
+            <!-- Search box for movies in selector -->
+            <div class="taste-search-bar">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input id="taste-movie-search" type="text" placeholder="Search movies to select (e.g. Inception, Dangal, Interstellar, 3 Idiots)..." autocomplete="off">
+            </div>
+
+            <!-- Active Selected Movies Tray -->
+            <div id="selected-movies-tray" class="selected-movies-tray" hidden></div>
+
+            <!-- Interactive Movie Selection Pills -->
+            <div id="movie-selector-pills" class="movie-selector-pills" aria-label="Select movies from library">
+              <!-- Dynamically populated from movie library -->
+            </div>
+          </div>
+
+          <!-- Quick Mood / Theme Presets -->
+          <div class="preset-chips-wrap">
+            <span class="preset-label">Or Quick Taste Presets:</span>
+            <div class="preset-chips">
+              <button type="button" class="preset-chip" data-mood="Happy" data-genre="Comedy" data-lang="Hindi" data-req="Lighthearted feel-good family laughter">😄 Family Comedy</button>
+              <button type="button" class="preset-chip" data-mood="Excited" data-genre="Sci-Fi" data-lang="English" data-req="Mind-bending plot twists and deep mystery">🧠 Mind-Bending Sci-Fi</button>
+              <button type="button" class="preset-chip" data-mood="Adventurous" data-genre="Action" data-lang="English" data-req="Thrilling cinematic adventure with epic stakes">⚡ Epic Action</button>
+              <button type="button" class="preset-chip" data-mood="Romantic" data-genre="Romance" data-lang="" data-req="Touching romantic journey with memorable characters">❤️ Warm Romance</button>
+              <button type="button" class="preset-chip" data-mood="Emotional" data-genre="Drama" data-lang="" data-req="Inspirational, deeply moving personal story">💔 Heartfelt Drama</button>
+            </div>
+          </div>
+
+          <!-- Step 2: Extra Preferences (Optional) -->
           <div class="form-row">
             <label class="form-control">
-              <span class="form-label">Current Mood *</span>
-              <select id="mood" required>
-                <option value="">Choose your mood</option>
+              <span class="form-label">Current Mood (Optional)</span>
+              <select id="mood">
+                <option value="">Any Mood / Match My Selected Movies</option>
                 <option value="Happy">😄 Happy & Joyful</option>
                 <option value="Emotional">😢 Emotional & Moving</option>
                 <option value="Romantic">❤️ Romantic & Warm</option>
@@ -220,36 +255,40 @@
             </label>
 
             <label class="form-control">
-              <span class="form-label">Preferred Genre</span>
+              <span class="form-label">Preferred Genre (Optional)</span>
               <input id="preferred-genre" maxlength="60" placeholder="e.g. Science Fiction, Crime, Drama">
             </label>
 
             <label class="form-control">
-              <span class="form-label">Preferred Language</span>
+              <span class="form-label">Preferred Language (Optional)</span>
               <input id="preferred-language" maxlength="60" placeholder="e.g. Hindi, English, Korean">
             </label>
           </div>
 
           <label class="form-control full-width">
-            <span class="form-label">Describe what you want to watch (optional)</span>
+            <span class="form-label">Describe What You Want (Optional)</span>
             <textarea
               id="recommendation-request"
               maxlength="500"
-              rows="3"
+              rows="2"
               placeholder="e.g. Recommend something thought-provoking with great visuals and emotional depth like Interstellar or Arrival."
             ></textarea>
           </label>
 
           <div class="curator-actions">
             <button id="recommend-button" class="btn-primary" type="submit">
-              <span>Get AI Recommendations</span>
-              <span class="sparkle" aria-hidden="true">✦</span>
+              <span id="recommend-btn-label">✦ Analyze Taste & Recommend</span>
             </button>
-            <span id="recommend-hint" class="curator-hint">Powered by OpenRouter intelligent model</span>
+            <span id="recommend-hint" class="curator-hint">Powered by OpenRouter AI + Smart Catalog Taste Matching</span>
           </div>
         </form>
 
         <p id="recommend-status" class="status-msg" role="status" aria-live="polite"></p>
+
+        <!-- Taste Summary Callout -->
+        <div id="taste-summary-container" class="taste-summary-container" hidden></div>
+
+        <!-- 3 Recommendations Cards -->
         <div id="recommendation-results" class="recommendation-results"></div>
       </div>
     </section>

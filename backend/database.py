@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Optional
 
 from flask import current_app
@@ -12,6 +13,8 @@ from pymongo.errors import PyMongoError
 _client: Optional[MongoClient] = None
 _database: Optional[Database] = None
 _connection_error: Optional[str] = None
+_last_failure_time: float = 0
+_RECONNECT_INTERVAL: float = 30.0  # seconds between reconnect attempts
 
 
 class DatabaseUnavailable(RuntimeError):
@@ -20,11 +23,11 @@ class DatabaseUnavailable(RuntimeError):
 
 def initialize_database(app) -> bool:
     """Connect to MongoDB with error logging and friendly fallback."""
-    global _client, _database, _connection_error
+    global _client, _database, _connection_error, _last_failure_time
     try:
         uri = app.config.get("MONGODB_URI", "mongodb://localhost:27017/")
         db_name = app.config.get("MONGODB_DATABASE", "cinesuggest_ai")
-        timeout = app.config.get("MONGODB_TIMEOUT_MS", 15000)
+        timeout = app.config.get("MONGODB_TIMEOUT_MS", 5000)
 
         _client = MongoClient(
             uri,
@@ -38,25 +41,29 @@ def initialize_database(app) -> bool:
         except Exception:
             pass
         _connection_error = None
+        _last_failure_time = 0
         print(f"[MongoDB] Connected to '{db_name}' successfully.", flush=True)
         return True
     except Exception as exc:
         _client = None
         _database = None
+        _last_failure_time = time.time()
         _connection_error = "The movie database is currently unavailable."
         print(f"[MongoDB] Connection failed: {exc}", flush=True)
         return False
 
 
 def get_database() -> Database:
-    global _database
+    global _database, _last_failure_time
     if _database is None:
-        try:
-            from flask import current_app
-            if current_app:
-                initialize_database(current_app)
-        except Exception as exc:
-            print(f"[MongoDB] Auto-reconnect failed: {exc}", flush=True)
+        # Throttle reconnect attempts to prevent blocking requests
+        if time.time() - _last_failure_time >= _RECONNECT_INTERVAL:
+            try:
+                from flask import current_app
+                if current_app:
+                    initialize_database(current_app)
+            except Exception as exc:
+                print(f"[MongoDB] Auto-reconnect failed: {exc}", flush=True)
 
     if _database is None:
         raise DatabaseUnavailable(_connection_error or "The movie database is currently unavailable.")

@@ -40,7 +40,7 @@ class Config:
 
     MONGODB_URI = _clean_mongo_uri(os.getenv("MONGODB_URI"))
     MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "cinesuggest_ai").strip().strip("'\"")
-    MONGODB_TIMEOUT_MS = 15000
+    MONGODB_TIMEOUT_MS = int(os.getenv("MONGODB_TIMEOUT_MS", "4000"))
 
     OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
     OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/auto").strip()

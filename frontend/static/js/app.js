@@ -19,9 +19,28 @@
     }
   }
 
+  // Liked movies storage helper (used for AI taste matching)
+  function loadLikedMovies() {
+    try {
+      const saved = localStorage.getItem("cinesuggest_liked_movies");
+      return new Set(saved ? JSON.parse(saved) : []);
+    } catch {
+      return new Set();
+    }
+  }
+
+  function saveLikedMovies(liked) {
+    try {
+      localStorage.setItem("cinesuggest_liked_movies", JSON.stringify([...liked]));
+    } catch (e) {
+      console.warn("Could not save liked movies to localStorage", e);
+    }
+  }
+
   const state = {
     movies: new Map(),
     watchlist: loadWatchlist(),
+    likedMovies: loadLikedMovies(),
     activeFilterTab: "all", // "all" | "watchlist"
     activeMovieId: null,
     spotlightMovieId: null,
@@ -137,6 +156,139 @@
     }
   }
 
+  // Toggle movie in liked/selected taste list
+  function toggleLikedMovie(movieTitle) {
+    const title = text(movieTitle);
+    if (!title) return;
+
+    if (state.likedMovies.has(title)) {
+      state.likedMovies.delete(title);
+      showToast(`Removed "${title}" from your liked movies.`);
+    } else {
+      state.likedMovies.add(title);
+      showToast(`Added "${title}" to your liked movies for AI taste matching!`, "success");
+    }
+    saveLikedMovies(state.likedMovies);
+    updateTasteSelectionUI();
+  }
+
+  function updateTasteSelectionUI() {
+    const count = state.likedMovies.size;
+    const badge = byId("selected-movies-badge");
+    const clearBtn = byId("clear-selected-movies-btn");
+    const btnLabel = byId("recommend-btn-label");
+
+    if (badge) {
+      badge.textContent = `${count} movie${count === 1 ? "" : "s"} selected`;
+    }
+    if (clearBtn) {
+      clearBtn.hidden = count === 0;
+    }
+    if (btnLabel) {
+      btnLabel.textContent = count > 0
+        ? `✦ Analyze Taste & Recommend (${count} selected)`
+        : `✦ Analyze Taste & Recommend`;
+    }
+
+    // Update movie card like buttons
+    document.querySelectorAll(".card-like-btn").forEach((btn) => {
+      const t = btn.dataset.movieTitle;
+      const isLiked = state.likedMovies.has(t);
+      btn.classList.toggle("active", isLiked);
+      btn.title = isLiked ? "Liked (Click to remove from AI taste)" : "Like this movie (Adds to AI taste)";
+    });
+
+    renderSelectedMoviesTray();
+    renderMovieSelectorPills();
+  }
+
+  function renderSelectedMoviesTray() {
+    const tray = byId("selected-movies-tray");
+    if (!tray) return;
+
+    if (state.likedMovies.size === 0) {
+      tray.hidden = true;
+      tray.replaceChildren();
+      return;
+    }
+
+    tray.hidden = false;
+    tray.replaceChildren();
+
+    state.likedMovies.forEach((title) => {
+      const tag = document.createElement("span");
+      tag.className = "selected-movie-tag";
+      tag.innerHTML = `
+        <span>${escapeHtml(title)}</span>
+        <button type="button" class="selected-movie-tag-close" data-title="${escapeHtml(title)}" title="Remove ${escapeHtml(title)}">×</button>
+      `;
+      tag.querySelector(".selected-movie-tag-close").addEventListener("click", () => {
+        toggleLikedMovie(title);
+      });
+      tray.append(tag);
+    });
+  }
+
+  function renderMovieSelectorPills() {
+    const container = byId("movie-selector-pills");
+    if (!container) return;
+
+    const filterVal = (byId("taste-movie-search")?.value || "").trim().toLowerCase();
+    const allMovies = [...state.movies.values()];
+
+    container.replaceChildren();
+
+    const matching = allMovies.filter((m) => {
+      if (!filterVal) return true;
+      return (
+        m.title.toLowerCase().includes(filterVal) ||
+        (m.director && m.director.toLowerCase().includes(filterVal)) ||
+        genresFor(m).some((g) => g.toLowerCase().includes(filterVal))
+      );
+    });
+
+    if (matching.length === 0) {
+      const empty = document.createElement("span");
+      empty.className = "text-muted";
+      empty.style.padding = "8px";
+      empty.textContent = "No movies match your search in the library.";
+      container.append(empty);
+      return;
+    }
+
+    matching.forEach((movie) => {
+      const isSelected = state.likedMovies.has(movie.title);
+      const pill = document.createElement("button");
+      pill.type = "button";
+      pill.className = `taste-movie-pill ${isSelected ? "selected" : ""}`;
+      pill.innerHTML = `
+        <span class="pill-check">${isSelected ? "✓" : "+"}</span>
+        <span>${escapeHtml(movie.title)}</span>
+        <small style="opacity: 0.65;">(${escapeHtml(text(movie.year))})</small>
+      `;
+      pill.addEventListener("click", () => {
+        toggleLikedMovie(movie.title);
+      });
+      container.append(pill);
+    });
+  }
+
+  function recommendSimilarTo(movieTitle) {
+    if (!state.likedMovies.has(movieTitle)) {
+      state.likedMovies.add(movieTitle);
+      saveLikedMovies(state.likedMovies);
+      updateTasteSelectionUI();
+    }
+    showToast(`Finding movies similar to "${movieTitle}"...`, "success");
+    const curatorSection = byId("curator-section");
+    if (curatorSection) {
+      curatorSection.scrollIntoView({ behavior: "smooth" });
+    }
+    setTimeout(() => {
+      byId("recommend-form").dispatchEvent(new Event("submit"));
+    }, 400);
+  }
+
   function posterArtwork(movie) {
     const remotePoster = safeUrl(movie.poster_url);
     if (remotePoster) {
@@ -182,6 +334,20 @@
       posterWrap.append(ratingBadge);
     }
 
+    // Like button (Thumbs-up / Heart for taste profile)
+    const isLiked = state.likedMovies.has(movie.title);
+    const likeBtn = document.createElement("button");
+    likeBtn.type = "button";
+    likeBtn.className = `card-like-btn ${isLiked ? "active" : ""}`;
+    likeBtn.dataset.movieTitle = movie.title;
+    likeBtn.title = isLiked ? "Liked (Click to remove from AI taste)" : "Like this movie (Adds to AI taste)";
+    likeBtn.innerHTML = `👍`;
+    likeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleLikedMovie(movie.title);
+    });
+    posterWrap.append(likeBtn);
+
     // Watchlist Heart Button
     const isSaved = state.watchlist.has(movie.id);
     const watchlistBtn = document.createElement("button");
@@ -212,13 +378,17 @@
       </div>
       <div class="card-actions">
         <button class="btn-card-details" type="button">Details</button>
-        <button class="btn-card-summary" type="button">✦ AI Summary</button>
+        <button class="btn-card-summary" type="button">✦ Summary</button>
+        <button class="btn-card-similar" type="button" title="Find movies like ${escapeHtml(movie.title)}">✦ Similar</button>
       </div>
     `;
 
     body.querySelector(".btn-card-details").addEventListener("click", () => openModal(movie.id));
     body.querySelector(".btn-card-summary").addEventListener("click", (e) => {
       requestSummary(movie.id, false, e.currentTarget);
+    });
+    body.querySelector(".btn-card-similar").addEventListener("click", () => {
+      recommendSimilarTo(movie.title);
     });
 
     card.append(posterWrap, body);
@@ -230,7 +400,6 @@
     const container = byId("spotlight-card");
     if (!spotlightSec || !container) return;
 
-    // Pick the highest rated movie or a top featured one
     const sorted = [...state.movies.values()].sort((a, b) => (numericRating(b.rating) ?? 0) - (numericRating(a.rating) ?? 0));
     const featured = sorted[0];
     if (!featured) {
@@ -273,15 +442,15 @@
           </svg>
           <span>Watch Trailer ↗</span>
         </a>
-        <button type="button" class="btn-ghost" id="spotlight-summary-btn">
-          <span>✦ Generate AI Summary</span>
+        <button type="button" class="btn-ghost" id="spotlight-similar-btn">
+          <span>✦ AI Taste Match</span>
         </button>
       </div>
     `;
 
     body.querySelector("#spotlight-details-btn").addEventListener("click", () => openModal(featured.id));
-    body.querySelector("#spotlight-summary-btn").addEventListener("click", (e) => {
-      requestSummary(featured.id, false, e.currentTarget);
+    body.querySelector("#spotlight-similar-btn").addEventListener("click", () => {
+      recommendSimilarTo(featured.title);
     });
 
     container.append(posterWrap, body);
@@ -333,12 +502,10 @@
 
     let list = [...state.movies.values()];
 
-    // Filter by Watchlist Tab if active
     if (state.activeFilterTab === "watchlist") {
       list = list.filter((m) => state.watchlist.has(m.id));
     }
 
-    // Filter by criteria
     list = list.filter((movie) => {
       const matchGenre = !genre || genresFor(movie).some((g) => g.toLowerCase() === genre);
       const matchLang = !language || languagesFor(movie).some((l) => l.toLowerCase() === language);
@@ -355,7 +522,6 @@
       return matchGenre && matchLang && matchRating && matchText;
     });
 
-    // Sorting
     if (sortBy === "rating_desc") {
       list.sort((a, b) => (numericRating(b.rating) ?? 0) - (numericRating(a.rating) ?? 0));
     } else if (sortBy === "year_desc") {
@@ -383,7 +549,6 @@
     const totalCount = state.activeFilterTab === "watchlist" ? state.watchlist.size : state.movies.size;
     byId("movie-count").textContent = `Showing ${list.length} of ${totalCount} movies`;
 
-    // Active filter indicator
     const hasActiveFilters = genre || language || minRating > 0 || filterQuery;
     const filterIndicator = byId("active-filter-indicator");
     if (filterIndicator) {
@@ -396,6 +561,7 @@
     state.movies.set(movie.id, movie);
     populateFilters();
     renderMovies();
+    renderMovieSelectorPills();
   }
 
   async function loadMovies() {
@@ -407,8 +573,11 @@
       populateFilters();
       renderMovies();
       renderSpotlight();
+      renderMovieSelectorPills();
+      updateTasteSelectionUI();
       setStatus("movies-status", "");
     } catch (error) {
+      console.warn("loadMovies error:", error);
       setStatus("movies-status", error.message, "error");
     }
   }
@@ -510,6 +679,10 @@
               <span>${isSaved ? "❤️ In Watchlist" : "🤍 Add to Watchlist"}</span>
             </button>
 
+            <button type="button" class="btn-ghost" id="modal-similar-btn" title="Find movies similar to ${escapeHtml(movie.title)}">
+              <span>✦ Find Similar</span>
+            </button>
+
             ${source ? `<a class="source-anchor" href="${escapeHtml(source)}" target="_blank" rel="noopener noreferrer">Wikipedia Source ↗</a>` : ""}
           </div>
 
@@ -520,12 +693,15 @@
 
     modalContent.querySelector(".modal-poster-wrap").append(posterArtwork(movie));
 
-    // Bind Watchlist toggle in modal
     modalContent.querySelector(".btn-modal-watchlist").addEventListener("click", () => {
       toggleWatchlist(movieId);
     });
 
-    // Bind summary triggers
+    modalContent.querySelector("#modal-similar-btn").addEventListener("click", () => {
+      closeModal();
+      recommendSimilarTo(movie.title);
+    });
+
     const triggerSummary = modalContent.querySelector("[data-trigger-summary]");
     if (triggerSummary) {
       triggerSummary.addEventListener("click", (e) => requestSummary(movieId, false, e.currentTarget));
@@ -642,7 +818,6 @@
       input.value = "";
       byId("search-clear-btn").hidden = true;
 
-      // Scroll to library and open modal for instant delight
       byId("library-section").scrollIntoView({ behavior: "smooth" });
       setTimeout(() => openModal(data.movie.id), 600);
     } catch (error) {
@@ -675,6 +850,25 @@
     });
   });
 
+  // Taste search in movie selector
+  const tasteSearch = byId("taste-movie-search");
+  if (tasteSearch) {
+    tasteSearch.addEventListener("input", () => {
+      renderMovieSelectorPills();
+    });
+  }
+
+  // Clear selected movies button
+  const clearSelectedBtn = byId("clear-selected-movies-btn");
+  if (clearSelectedBtn) {
+    clearSelectedBtn.addEventListener("click", () => {
+      state.likedMovies.clear();
+      saveLikedMovies(state.likedMovies);
+      updateTasteSelectionUI();
+      showToast("Cleared selected taste movies.");
+    });
+  }
+
   // AI Recommendation Curator Form
   byId("recommend-form").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -684,15 +878,33 @@
     const langVal = byId("preferred-language").value;
     const reqVal = byId("recommendation-request").value;
 
-    if (!moodVal) {
-      return setStatus("recommend-status", "Please select a mood first.", "error");
+    const selectedList = [...state.likedMovies];
+
+    if (!selectedList.length && !moodVal && !genreVal && !langVal && !reqVal) {
+      return setStatus(
+        "recommend-status",
+        "Please select at least one movie you like, choose a mood, or describe what you want.",
+        "error"
+      );
     }
 
-    setButtonBusy(button, true, "Finding recommendations...");
-    setStatus("recommend-status", "Consulting OpenRouter AI curator for tailored movies...");
+    setButtonBusy(button, true, "Analyzing taste...");
+    setStatus(
+      "recommend-status",
+      selectedList.length
+        ? `Analyzing your love for ${selectedList.slice(0, 3).join(", ")} and curating matches...`
+        : "Consulting AI taste curator for tailored movies..."
+    );
+
+    const tasteSummaryBox = byId("taste-summary-container");
+    if (tasteSummaryBox) {
+      tasteSummaryBox.hidden = true;
+      tasteSummaryBox.replaceChildren();
+    }
     byId("recommendation-results").replaceChildren();
 
     const payload = {
+      selected_movies: selectedList,
       mood: moodVal,
       genre: genreVal,
       language: langVal,
@@ -706,14 +918,32 @@
         body: JSON.stringify(payload),
       });
 
+      // Display Taste Summary Card if returned
+      if (data.taste_summary && tasteSummaryBox) {
+        tasteSummaryBox.hidden = false;
+        tasteSummaryBox.innerHTML = `
+          <div class="taste-profile-card">
+            <span class="taste-profile-badge">✦ YOUR CINEMA TASTE PROFILE</span>
+            <p class="taste-profile-text">${escapeHtml(data.taste_summary)}</p>
+          </div>
+        `;
+      }
+
+      // Render recommendations
       data.recommendations.forEach((item) => {
         const card = document.createElement("article");
         card.className = "rec-card";
+        const trailerUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(item.title + " " + (item.year || "") + " trailer")}`;
+
         card.innerHTML = `
+          <div class="rec-score-badge">★ ${escapeHtml(item.match_score || "98% Match")}</div>
           <h3 class="rec-title">${escapeHtml(item.title)}</h3>
           <div class="rec-meta">${escapeHtml(item.year)} • ${escapeHtml(item.genre)} • ${escapeHtml(item.language)}</div>
           <p class="rec-reason">${escapeHtml(item.reason)}</p>
           <div class="rec-actions">
+            <a href="${escapeHtml(trailerUrl)}" target="_blank" rel="noopener noreferrer" class="btn-trailer" style="padding: 6px 12px; font-size: 0.8rem;">
+              <span>Watch Trailer ↗</span>
+            </a>
             <button type="button" class="btn-rec-search">Search in Library ↗</button>
           </div>
         `;
@@ -730,7 +960,7 @@
         byId("recommendation-results").append(card);
       });
 
-      setStatus("recommend-status", "✓ AI curated 3 personalized movie recommendations for you!", "success");
+      setStatus("recommend-status", "✓ AI curated 3 personalized movie recommendations tailored to your taste!", "success");
       showToast("Recommendations ready!", "success");
     } catch (error) {
       setStatus("recommend-status", error.message, "error");
